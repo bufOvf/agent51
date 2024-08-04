@@ -1,4 +1,5 @@
 import os
+from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 def get_api_key(service):
