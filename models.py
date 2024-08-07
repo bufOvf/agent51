@@ -2,6 +2,10 @@ import os
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
+load_dotenv()
+DEFAULT_TEMPERATURE = 1.2
+
+
 def get_api_key(service):
     load_dotenv()
     return os.getenv(f"{service}_API_KEY")
@@ -33,6 +37,3 @@ def get_mistral_mixtral_8x7b(temperature=DEFAULT_TEMPERATURE):
 def get_whisper_whisper_large_v3(temperature=DEFAULT_TEMPERATURE):
     api_key = get_api_key("GROQ")
     return Whisper(model_name="whisper-large-v3", temperature=temperature, api_key=api_key)
-
-
-    
