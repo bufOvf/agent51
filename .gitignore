@@ -1,3 +1,6 @@
 **/.env
 
 .venv/
+rag_files/
+current_context.txt
+system_prompt.txt
