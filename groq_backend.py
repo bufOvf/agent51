@@ -20,7 +20,8 @@ with open('system_prompt.txt', 'r') as file:
     system_prompt = file.read()
 
 class GroqBackend:
-    def __init__(self, api_key, model_name="llama-3.1-70b-versatile", docs_folder="./rag_files"):
+    def __init__(self, user_name, api_key, model_name="llama-3.1-70b-versatile", docs_folder="./rag_files"):
+        self.user_name = user_name
         self.api_key = api_key
         self.model_name = model_name
         self.docs_folder = docs_folder
@@ -91,15 +92,16 @@ class GroqBackend:
         Current context:
         - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         {current_context}
+        - You are talking to {self.user_name}.
         """
         print("--------------------------------------------------")
-        print("Mira's personality set up")
+        print("Mira's system prompt is set up")
         print("--------------------------------------------------")
 
     def setup_rag_chain(self):
         rag_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(
-                self.mira_persona + "\nUse the following pieces of context to inform your response, but don't explicitly mention them: {context}"
+                self.mira_persona + "\nUse the following pieces of context from your RAG memory to inform your response, but don't explicitly mention them: {context}"
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             HumanMessagePromptTemplate.from_template("{human_input}")
@@ -150,16 +152,23 @@ class GroqBackend:
         
         self.memory.chat_memory.add_user_message(user_input)
         self.memory.chat_memory.add_ai_message(response)
-        self.save_message("Human", user_input)
+        self.save_message(f"{self.user_name}", user_input)
         self.save_message("Mira", response)
         return response
 
     def create_conversation_file(self):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
         filename = f"conversation_{timestamp}.json"
         file_path = os.path.join(self.docs_folder, filename)
         with open(file_path, 'w') as f:
-            json.dump({"messages": []}, f)
+            
+            json.dump(
+                {"context": [
+                    {"start_datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+                    {"info": f"Conversation with {self.user_name}."}],
+                "messages": []
+                }, 
+                f)
         print("--------------------------------------------------")
         print(f"Conversation file created: {file_path}")
         print("--------------------------------------------------")
