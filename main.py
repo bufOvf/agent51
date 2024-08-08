@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from groq_backend import GroqBackend
+from backend import GroqBackend
 
 
 load_dotenv()
@@ -16,8 +16,8 @@ def main():
         user_name = os.environ.get('default_user_name')
     conversation_length = 0
 
-    # Initialize GroqBackend
-    backend = GroqBackend(user_name, api_key=groq_api_key)
+    # Initialize Backend
+    backend = Backend(user_name, api_key=groq_api_key)
 
     print("Mira is initialized and ready to chat. Type your messages. Type 'exit' to end the conversation.")
 
