@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from backend import GroqBackend
+from backend import Backend
 
 
 load_dotenv()
@@ -26,8 +26,12 @@ def main():
             user_input = input("You: ")
             if user_input.lower() == 'exit':
                 break
+            try:
+                response = backend.get_response(user_input)
+            except Exception as e:
+                print(f"Error: {e}")
+                continue
 
-            response = backend.get_response(user_input)
             print(f"Mira: {response}")
 
             conversation_length += 1
