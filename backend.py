@@ -1,5 +1,6 @@
 import os
 import json
+from dotenv import load_dotenv
 from datetime import datetime
 from langchain_groq import ChatGroq
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -11,20 +12,26 @@ from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
+from langchain.schema import Document
 
+load_dotenv()
 
-with open('current_context.txt', 'r') as file:
+with open('prompts/current_context.txt', 'r') as file:
     current_context = file.read()
 
-with open('system_prompt.txt', 'r') as file:
+with open('prompts/main_system_prompt.txt', 'r') as file:
     system_prompt = file.read()
 
-class GroqBackend:
+
+
+
+class Backend:
     def __init__(self, user_name, api_key, model_name="llama-3.1-70b-versatile", docs_folder="./rag_files"):
         self.user_name = user_name
         self.api_key = api_key
         self.model_name = model_name
         self.docs_folder = docs_folder
+        self.create_file_structure_text()
         self.setup_llm()
         self.setup_embeddings()
         self.setup_vectorstore()
@@ -36,7 +43,9 @@ class GroqBackend:
     def setup_llm(self):
         self.llm = ChatGroq(
             groq_api_key=self.api_key,
-            model_name=self.model_name
+            model_name=self.model_name,
+            temperature=1.2
+            # max_tokens=8000
         )
         print("--------------------------------------------------")
         print(f"LLM set up with model: {self.model_name}")
@@ -56,7 +65,30 @@ class GroqBackend:
         print(f"Vectorstore set up with {len(self.documents)} documents")
         print("--------------------------------------------------")
 
+    # def load_documents(self):
+    #     text_splitter = RecursiveCharacterTextSplitter(
+    #         separators=["\n\n", "\n", " ", ""],
+    #         chunk_size=1000,
+    #         chunk_overlap=200,
+    #         length_function=len
+    #     )
+    #     self.documents = []
+    #     for filename in os.listdir(self.docs_folder):
+    #         if filename.endswith(".txt") or filename.endswith(".md") or filename.endswith(".json"):
+    #             with open(os.path.join(self.docs_folder, filename), 'r') as file:
+    #                 text = file.read()
+    #                 chunks = text_splitter.split_text(text)
+    #                 for chunk in chunks:
+    #                     self.documents.append(Document(page_content=chunk, metadata={"source": filename}))
+
+
     def load_documents(self):
+
+        rag_dir = os.environ.get('rag_dir')
+        exclude_dirs = ['.git', '__pycache__', '.venv']
+        exclude_files = ['.gitignore', 'requirements.txt', 'README.md']
+        include_extensions = ['.py', '.css', '.md', '.json', '.txt']
+
         text_splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "\n", " ", ""],
             chunk_size=1000,
@@ -64,17 +96,33 @@ class GroqBackend:
             length_function=len
         )
         self.documents = []
-        for filename in os.listdir(self.docs_folder):
-            if filename.endswith(".txt") or filename.endswith(".md") or filename.endswith(".json"):
-                with open(os.path.join(self.docs_folder, filename), 'r') as file:
-                    text = file.read()
-                    chunks = text_splitter.split_text(text)
-                    for chunk in chunks:
-                        self.documents.append(Document(page_content=chunk, metadata={"source": filename}))
+
+        for dirpath, dirnames, filenames in os.walk(rag_dir):
+            # Exclude directories
+            dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+            for filename in filenames:
+                if filename in exclude_files:
+                    continue
+                if not any(filename.endswith(ext) for ext in include_extensions):
+                    continue
+
+                file_path = os.path.join(dirpath, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        text = file.read()
+                        chunks = text_splitter.split_text(text)
+                        for chunk in chunks:
+                            self.documents.append(Document(page_content=chunk, metadata={"source": file_path}))
+                except Exception as e:
+                    print(f"Error processing {file_path}: {str(e)}")
 
         print("--------------------------------------------------")
-        print(f"Loaded {len(self.documents)} document chunks from {self.docs_folder}")
+        print(f"Loaded {len(self.documents)} document chunks")
         print("--------------------------------------------------")
+        return self.documents
+
+
 
     def setup_memory(self):
         self.memory = ConversationBufferMemory(
@@ -101,7 +149,7 @@ class GroqBackend:
     def setup_rag_chain(self):
         rag_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(
-                self.mira_persona + "\nUse the following pieces of context from your RAG memory to inform your response, but don't explicitly mention them: {context}"
+                self.mira_persona + "\nUse the following pieces of context, that have been formatted from your RAG database, to inform your response: {context}" # , but don't explicitly mention them
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             HumanMessagePromptTemplate.from_template("{human_input}")
@@ -140,15 +188,15 @@ class GroqBackend:
         print("--------------------------------------------------")
 
     def get_response(self, user_input):
-        print("--------------------------------------------------")
-        print(f"User input: {user_input}")
-        print("--------------------------------------------------")
+        # print("--------------------------------------------------")
+        # print(f"User input: {user_input}")
+        # print("--------------------------------------------------")
         
         response = self.rag_chain.invoke(user_input)
         
-        print("--------------------------------------------------")
-        print(f"Mira's response: {response}")
-        print("--------------------------------------------------")
+        # print("--------------------------------------------------")
+        # print(f"Mira's response: {response}")
+        # print("--------------------------------------------------")
         
         self.memory.chat_memory.add_user_message(user_input)
         self.memory.chat_memory.add_ai_message(response)
@@ -195,3 +243,19 @@ class GroqBackend:
         print("--------------------------------------------------")
         print(f"Conversation title updated: {title}")
         print("--------------------------------------------------")
+
+    def create_file_structure_text(self):
+        rag_dir = load_dotenv('rag_dir')
+        output_file = 'rag_files/file_structure.txt'
+        with open(output_file, 'w') as file:
+            for dirpath, dirnames, filenames in os.walk(rag_dir):
+                # Calculate the level of depth
+                depth = dirpath.replace(rag_dir, '').count(os.sep)
+                indent = '|--' * depth
+                
+                # Write the directory name
+                file.write(f"{indent} {os.path.basename(dirpath)}/\n")
+                
+                # Write the file names
+                for filename in filenames:
+                    file.write(f"{indent}|-- {filename}\n")
