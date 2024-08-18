@@ -1,4 +1,4 @@
-agi experimentation
+basic agi experimentation
 
 [x]conversation memory
 
