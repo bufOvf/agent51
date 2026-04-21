@@ -5,4 +5,5 @@ rag_files/
 prompts/current_context.txt
 prompts/main_system_prompt.txt
 TODO.txt
-sys_prompt_addition.txt__pycache__/
+sys_prompt_addition.txt
+__pycache__/
