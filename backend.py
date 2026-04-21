@@ -31,10 +31,10 @@ class Backend:
         self.api_key = api_key
         self.model_name = model_name
         self.docs_folder = docs_folder
-        self.create_file_structure_text()
+        # self.create_file_structure_text()
         self.setup_llm()
-        self.setup_embeddings()
-        self.setup_vectorstore()
+        # self.setup_embeddings()
+        # self.setup_vectorstore()
         self.setup_memory()
         self.setup_mira_personality()
         self.setup_rag_chain()
@@ -66,6 +66,7 @@ class Backend:
         print("--------------------------------------------------")
 
     # def load_documents(self):
+
     #     text_splitter = RecursiveCharacterTextSplitter(
     #         separators=["\n\n", "\n", " ", ""],
     #         chunk_size=1000,
@@ -81,13 +82,18 @@ class Backend:
     #                 for chunk in chunks:
     #                     self.documents.append(Document(page_content=chunk, metadata={"source": filename}))
 
+    #     print("--------------------------------------------------")
+    #     print(f"Loaded {len(self.documents)} document chunks")
+    #     print("--------------------------------------------------")
+
 
     def load_documents(self):
 
+        
         rag_dir = os.environ.get('rag_dir')
         exclude_dirs = ['.git', '__pycache__', '.venv']
-        exclude_files = ['.gitignore', 'requirements.txt', 'README.md']
-        include_extensions = ['.py', '.css', '.md', '.json', '.txt']
+        exclude_files = ['.gitignore', 'requirements.txt', 'README.md', '.obsidian', '.trash', 'drawings']
+        include_extensions = ['.json', '.txt']
 
         text_splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "\n", " ", ""],
@@ -108,11 +114,13 @@ class Backend:
                     continue
 
                 file_path = os.path.join(dirpath, filename)
+                
                 try:
                     with open(file_path, 'r', encoding='utf-8') as file:
                         text = file.read()
                         chunks = text_splitter.split_text(text)
                         for chunk in chunks:
+                            print(chunk)
                             self.documents.append(Document(page_content=chunk, metadata={"source": file_path}))
                 except Exception as e:
                     print(f"Error processing {file_path}: {str(e)}")
@@ -149,7 +157,8 @@ class Backend:
     def setup_rag_chain(self):
         rag_prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(
-                self.mira_persona + "\nUse the following pieces of context, that have been formatted from your RAG database, to inform your response: {context}" # , but don't explicitly mention them
+                # self.mira_persona + "\nUse the following pieces of context, that have been formatted from your RAG database, to inform your response: {context}" # , but don't explicitly mention them
+                self.mira_persona
             ),
             MessagesPlaceholder(variable_name="chat_history"),
             HumanMessagePromptTemplate.from_template("{human_input}")
@@ -175,7 +184,7 @@ class Backend:
 
         self.rag_chain = (
             {
-                "context": RunnableLambda(retrieve_and_format),
+                # "context": RunnableLambda(retrieve_and_format),
                 "human_input": RunnablePassthrough(),
                 "chat_history": RunnableLambda(lambda x: self.memory.load_memory_variables({})["chat_history"]),
             }
@@ -244,18 +253,18 @@ class Backend:
         print(f"Conversation title updated: {title}")
         print("--------------------------------------------------")
 
-    def create_file_structure_text(self):
-        rag_dir = load_dotenv('rag_dir')
-        output_file = 'rag_files/file_structure.txt'
-        with open(output_file, 'w') as file:
-            for dirpath, dirnames, filenames in os.walk(rag_dir):
-                # Calculate the level of depth
-                depth = dirpath.replace(rag_dir, '').count(os.sep)
-                indent = '|--' * depth
+    # def create_file_structure_text(self):
+    #     rag_dir = load_dotenv('rag_dir')
+    #     output_file = 'rag_files/file_structure.txt'
+    #     with open(output_file, 'w') as file:
+    #         for dirpath, dirnames, filenames in os.walk(rag_dir):
+    #             # Calculate the level of depth
+    #             depth = dirpath.replace(rag_dir, '').count(os.sep)
+    #             indent = '|--' * depth
                 
-                # Write the directory name
-                file.write(f"{indent} {os.path.basename(dirpath)}/\n")
+    #             # Write the directory name
+    #             file.write(f"{indent} {os.path.basename(dirpath)}/\n")
                 
-                # Write the file names
-                for filename in filenames:
-                    file.write(f"{indent}|-- {filename}\n")
+    #             # Write the file names
+    #             for filename in filenames:
+    #                 file.write(f"{indent}|-- {filename}\n")
